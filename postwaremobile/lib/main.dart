@@ -10,7 +10,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp( // Añadí 'const' aquí
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false, 
       title: 'PostWare',
       home: LoginScreen(), // Este es el origen de las advertencias
     );
