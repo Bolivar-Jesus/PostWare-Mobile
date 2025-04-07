@@ -16,7 +16,14 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0  # Análisis de código
+  flutter_lints: ^2.0.0 
+  flutter_native_splash: ^2.3.5  # Análisis de código
+  flutter_launcher_icons: ^0.13.1
+
+flutter_icons:
+  android: true
+  ios: false
+  image_path: "lib/assets/images/postware_logo.png"
 
 flutter:
   uses-material-design: true  # Habilita los Material Icons
