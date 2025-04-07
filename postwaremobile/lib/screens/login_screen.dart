@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'registration_screen.dart'; // Importa la pantalla de registro
+import 'registration_screen.dart'; 
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -125,14 +126,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       TextButton(
-                        onPressed: () {
-                          // Navegar a pantalla de recuperación de contraseña
-                        },
-                        child: const Text(
-                          '¿Olvidaste tu contraseña?',
-                          style: TextStyle(fontSize: 14.0),
-                        ),
+                    onPressed: () {
+                       Navigator.push(
+                        context,
+                     MaterialPageRoute(
+                    builder: (context) => const ForgotPasswordScreen(),
                       ),
+                      );
+                      },
+                      child: const Text(
+                      '¿Olvidaste tu contraseña?',
+                      style: TextStyle(fontSize: 14.0),
+                        ), 
+                        ),
                       TextButton(
                         onPressed: () {
                           Navigator.push(
