@@ -12,6 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2  # Iconos para iOS
+  http: ^1.1.0  # Añadido para las llamadas HTTP
 
 dev_dependencies:
   flutter_test:
