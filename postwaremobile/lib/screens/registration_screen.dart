@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../models/registration_request.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -11,21 +13,75 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
   final _emailController = TextEditingController();
-  final _confirmEmailController = TextEditingController();
-  
+  final _apiService = ApiService();
+  bool _isLoading = false;
+
   String _document = '';
   String _name = '';
   String _lastName = '';
   String _phone = '';
   String _password = '';
+  String _username = '';
 
-  bool _validatePassword(String value) {
-    final hasMinLength = value.length >= 8;
-    final hasLowerCase = value.contains(RegExp(r'[a-z]'));
-    final hasNumber = value.contains(RegExp(r'[0-9]'));
-    final hasSpecialChar = value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
-    
-    return hasMinLength && hasLowerCase && hasNumber && hasSpecialChar;
+  Future<void> _handleRegistration() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      setState(() {
+        _isLoading = true;
+      });
+
+      final registrationRequest = RegistrationRequest(usuario: {
+        "nombreusuario": _username,
+        "email": _emailController.text,
+        "contrasena": _password,
+        "rol_idrol": 2
+      }, cliente: {
+        "documentocliente": _document,
+        "nombre": _name,
+        "apellido": _lastName,
+        "email": _emailController.text,
+        "numerocontacto": _phone
+      });
+
+      try {
+        final result =
+            await _apiService.registerUserAndClient(registrationRequest);
+
+        if (!mounted) return;
+
+        if (result['success']) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Registro exitoso'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context); // Volver a la pantalla de login
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message']),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
   }
 
   @override
@@ -41,7 +97,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo de la aplicación
                   Container(
                     alignment: Alignment.center,
                     margin: const EdgeInsets.only(bottom: 40.0),
@@ -64,13 +119,39 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         vertical: 14.0,
                       ),
                     ),
+                    keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Por favor ingrese su documento';
                       }
+                      if (!RegExp(r'^\d+$').hasMatch(value)) {
+                        return 'El documento debe contener solo números';
+                      }
                       return null;
                     },
                     onSaved: (value) => _document = value!,
+                  ),
+                  const SizedBox(height: 16.0),
+
+                  // Campo de Nombre de Usuario
+                  TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'Nombre de Usuario',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 14.0,
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor ingrese su nombre de usuario';
+                      }
+                      return null;
+                    },
+                    onSaved: (value) => _username = value!,
                   ),
                   const SizedBox(height: 16.0),
 
@@ -135,6 +216,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Por favor ingrese su teléfono';
                       }
+                      if (!RegExp(r'^\d{10}$').hasMatch(value)) {
+                        return 'El teléfono debe tener exactamente 10 dígitos';
+                      }
                       return null;
                     },
                     onSaved: (value) => _phone = value!,
@@ -168,32 +252,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 16.0),
 
-                  // Campo de Confirmar Email
-                  TextFormField(
-                    controller: _confirmEmailController,
-                    decoration: InputDecoration(
-                      labelText: 'Confirmar Email',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 14.0,
-                      ),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor confirme su email';
-                      }
-                      if (value != _emailController.text) {
-                        return 'Los emails no coinciden';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16.0),
-
                   // Campo de Contraseña
                   TextFormField(
                     controller: _passwordController,
@@ -212,61 +270,27 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Por favor ingrese una contraseña';
                       }
-                      if (!_validatePassword(value)) {
-                        return 'La contraseña debe tener:\n- 8+ caracteres\n- 1 minúscula\n- 1 número\n- 1 caracter especial';
-                      }
                       return null;
                     },
                     onSaved: (value) => _password = value!,
-                  ),
-                  const SizedBox(height: 16.0),
-
-                  // Campo de Confirmar Contraseña
-                  TextFormField(
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Confirmar Contraseña',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 14.0,
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor confirme su contraseña';
-                      }
-                      if (value != _passwordController.text) {
-                        return 'Las contraseñas no coinciden';
-                      }
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 30.0),
 
                   // Botón de Registrarse
                   ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        _formKey.currentState!.save();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Registro exitoso')),
-                        );
-                      }
-                    },
+                    onPressed: _isLoading ? null : _handleRegistration,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10.0),
                       ),
                     ),
-                    child: const Text(
-                      'Registrarse',
-                      style: TextStyle(fontSize: 16.0),
-                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : const Text(
+                            'Registrarse',
+                            style: TextStyle(fontSize: 16.0),
+                          ),
                   ),
                   const SizedBox(height: 16.0),
 
@@ -288,7 +312,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   void dispose() {
     _passwordController.dispose();
     _emailController.dispose();
-    _confirmEmailController.dispose();
     super.dispose();
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'registration_screen.dart'; 
-import 'forgot_password_screen.dart';
+import 'forgot_password.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
