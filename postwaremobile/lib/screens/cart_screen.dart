@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/cart_service.dart';
-import '../services/auth_service.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -151,8 +150,7 @@ class CartScreen extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: () async {
                           try {
-                            // TODO: Obtener el documentoCliente del usuario actual
-                            final result = await cart.createOrder(123456789);
+                            final result = await cart.createOrder();
                             if (!context.mounted) return;
 
                             if (result['success']) {
