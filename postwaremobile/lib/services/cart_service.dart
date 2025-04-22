@@ -62,7 +62,7 @@ class CartService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Map<String, dynamic>> createOrder(int documentoCliente) async {
+  Future<Map<String, dynamic>> createOrder() async {
     if (_items.isEmpty) {
       throw Exception('El carrito está vacío');
     }
@@ -70,11 +70,17 @@ class CartService extends ChangeNotifier {
     try {
       final url = Uri.parse('$baseUrl/api/ventas');
 
-      // Calcular el total
-      final totalFormateado = _items.fold(
-    0.0, (sum, item) => sum + (item.precioventa * item.cantidad));
+      final credentials = await AuthService.getSavedCredentials();
+      print('Credenciales recuperadas: $credentials');
+      final documentoCliente = credentials['documentocliente'];
 
-      // Preparar los productos
+      if (documentoCliente == null || documentoCliente.isEmpty) {
+        throw Exception('El documento del cliente no está disponible');
+      }
+
+      final totalFormateado = _items.fold(
+          0.0, (sum, item) => sum + (item.precioventa * item.cantidad));
+
       final productosFormateados = _items.map((item) {
         return {
           'idproducto': item.idproducto,
@@ -84,7 +90,7 @@ class CartService extends ChangeNotifier {
       }).toList();
 
       final ventaData = {
-        'documentocliente': documentoCliente.toString(),
+        'documentocliente': documentoCliente,
         'total': totalFormateado,
         'productos': productosFormateados
       };

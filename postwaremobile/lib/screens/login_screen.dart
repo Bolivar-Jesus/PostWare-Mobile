@@ -6,7 +6,7 @@ import '../services/auth_service.dart';
 import '../models/login_request.dart';
 import '../widgets/theme_switch_button.dart';
 import 'dart:developer' as developer;
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,6 +32,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadSavedCredentials() async {
     final credentials = await AuthService.getSavedCredentials();
+    final documentoCliente = credentials['documentocliente'] as String;
+
+    if (documentoCliente == null || documentoCliente.isEmpty) {
+      throw Exception('El documento del cliente no está disponible');
+    }
+
     if (credentials['email'] != null && credentials['password'] != null) {
       setState(() {
         _emailController.text = credentials['email']!;
@@ -61,22 +67,25 @@ class _LoginScreenState extends State<LoginScreen> {
           // Extraer el ID del usuario de la respuesta (soporta distintos formatos)
           final data = result['data'];
           if (data != null && data is Map<String, dynamic>) {
-            if (data.containsKey('usuario') && data['usuario'] is Map<String, dynamic>) {
+            if (data.containsKey('usuario') &&
+                data['usuario'] is Map<String, dynamic>) {
               _clientId = data['usuario']['idusuario'] as int?;
             } else if (data.containsKey('idusuario')) {
               _clientId = data['idusuario'] as int?;
             }
           }
           if (_clientId != null) {
+            print('Documento del cliente: ${data['documentocliente']}');
             await AuthService.saveCredentials(
               _emailController.text,
               _passwordController.text,
               _clientId!,
+              data['documentocliente'].toString(),
             );
           } else {
             developer.log('Error: clientId no encontrado en la respuesta');
           }
-          
+
           // Mostrar mensaje de éxito
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
