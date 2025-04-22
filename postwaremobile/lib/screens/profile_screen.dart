@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../models/client.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -30,11 +31,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _errorMessage = '';
       });
 
-      // Obtener el ID del cliente
-      final clientId = await AuthService.getCurrentClientId();
-      developer.log('ID del cliente obtenido: $clientId');
-
-      final clientData = await _apiService.getClientProfile(clientId);
+      // Cargar perfil usando el ID de usuario guardado internamente en ApiService
+      final clientData = await _apiService.getClientProfile();
       developer.log('Datos del cliente recibidos: ${clientData.toString()}');
 
       if (mounted) {
@@ -65,7 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _updateProfile() async {
     if (_client != null) {
       try {
-        await _apiService.updateClientProfile(_client!.id, _client!);
+        await _apiService.updateClientProfile(_client!);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Perfil actualizado con éxito'),
@@ -162,9 +160,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 24),
                           Center(
                             child: ElevatedButton(
-                              onPressed: () {
-                                // Aquí puedes implementar la navegación a una pantalla de edición
-                                // o mostrar un diálogo para editar la información
+                              onPressed: () async {
+                                final updated = await Navigator.push<Client>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => EditProfileScreen(client: _client!),
+                                  ),
+                                );
+                                if (updated != null) {
+                                  setState(() {
+                                    _client = updated;
+                                  });
+                                }
                               },
                               style: ElevatedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
