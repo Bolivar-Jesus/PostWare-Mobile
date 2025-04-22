@@ -5,6 +5,8 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../models/login_request.dart';
 import '../widgets/theme_switch_button.dart';
+import 'dart:developer' as developer;
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _apiService = ApiService();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  int? _clientId;
 
   @override
   void initState() {
@@ -50,16 +53,29 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         final result = await _apiService.login(request);
+        developer.log('Resultado del inicio de sesión: $result');
 
         if (!mounted) return;
 
         if (result['success']) {
-          // Guardar las credenciales
-          await AuthService.saveCredentials(
-            _emailController.text,
-            _passwordController.text,
-            result['clientId'] ?? 0, // Asegurarse de que clientId sea un int
-          );
+          // Extraer el ID del usuario de la respuesta (soporta distintos formatos)
+          final data = result['data'];
+          if (data != null && data is Map<String, dynamic>) {
+            if (data.containsKey('usuario') && data['usuario'] is Map<String, dynamic>) {
+              _clientId = data['usuario']['idusuario'] as int?;
+            } else if (data.containsKey('idusuario')) {
+              _clientId = data['idusuario'] as int?;
+            }
+          }
+          if (_clientId != null) {
+            await AuthService.saveCredentials(
+              _emailController.text,
+              _passwordController.text,
+              _clientId!,
+            );
+          } else {
+            developer.log('Error: clientId no encontrado en la respuesta');
+          }
           
           // Mostrar mensaje de éxito
           ScaffoldMessenger.of(context).showSnackBar(

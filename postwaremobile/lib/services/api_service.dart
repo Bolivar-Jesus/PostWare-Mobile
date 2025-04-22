@@ -357,71 +357,72 @@ class ApiService {
     }
   }
 
-  // Método completamente reescrito para obtener el perfil del cliente
-  Future<Client> getClientProfile(int clientId) async {
-    try {
-      // Usar la URL exacta que proporcionaste
-      final url = Uri.parse('$baseUrl/api/clientes/miperfil/$clientId');
-
-      developer.log('Obteniendo perfil del cliente: $url');
-
-      // Realizar la petición GET sin headers complejos
-      final response = await http.get(url);
-
-      developer.log('Código de estado: ${response.statusCode}');
-      developer.log('Respuesta: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        developer.log('Datos del cliente recibidos: $responseData');
-
-        // Crear directamente el objeto Client con los datos recibidos
-        return Client.fromJson(responseData);
-      } else {
-        throw Exception('Error al obtener el perfil: ${response.statusCode}');
-      }
-    } catch (e) {
-      developer.log('Error obteniendo perfil: $e');
-      throw Exception('Error de conexión al obtener el perfil: $e');
-    }
+    // Obtener perfil del cliente por ID de usuario
+  static Future<http.Response> obtenerPerfilCliente(int usuarioId) async {
+    final url = Uri.parse('$baseUrl/clientes/usuario/$usuarioId');
+    final response = await http.get(url);
+    return response;
   }
 
-  Future<void> updateClientProfile(int clientId, Client client) async {
-    try {
-      final url = Uri.parse('$baseUrl/api/clientes/miperfil/1');
-
-      developer.log('Actualizando perfil del cliente: $url');
-
-      final response = await http.put(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(client.toJson()),
-      );
-
-      developer.log('Código de estado: ${response.statusCode}');
-      developer.log('Respuesta: ${response.body}');
-
-      if (response.statusCode != 200) {
-        throw Exception(
-            'Error al actualizar el perfil: ${response.statusCode}');
-      }
-    } catch (e) {
-      developer.log('Error actualizando perfil: $e');
-      throw Exception('Error de conexión al actualizar el perfil');
-    }
+  
+    // Obtener pedidos por documento de cliente
+  static Future<http.Response> obtenerPedidosPorCliente(String documentoCliente) async {
+    final url = Uri.parse('$baseUrl/ventas/cliente/$documentoCliente');
+    final response = await http.get(url);
+    return response;
   }
 
-  Future<List<dynamic>> getClientOrders(int clientId) async {
-    final response = await http.get(Uri.parse(
-        'https://apipost-elt2.onrender.com/api/ventas/mis-ventas/$clientId'));
-
+  // Obtener perfil del cliente usando el ID de usuario guardado
+  Future<Client> getClientProfile() async {
+    final userId = await AuthService.getCurrentClientId();
+    final url = Uri.parse('$baseUrl/api/clientes/miperfil/$userId');
+    developer.log('Obteniendo perfil del cliente: $url');
+    final response = await http.get(
+      url,
+      headers: {'Accept': 'application/json'},
+    );
+    developer.log('Código de estado: ${response.statusCode}');
     if (response.statusCode == 200) {
-      return json.decode(response.body);
+      final data = jsonDecode(response.body);
+      return Client.fromJson(data);
     } else {
-      throw Exception('Error al cargar los pedidos');
+      throw Exception('Error al obtener el perfil: ${response.statusCode}');
+    }
+  }
+
+  // Actualizar perfil del cliente usando el ID de usuario guardado
+  Future<void> updateClientProfile(Client client) async {
+    final userId = await AuthService.getCurrentClientId();
+    final url = Uri.parse('$baseUrl/api/clientes/miperfil/$userId');
+    developer.log('Actualizando perfil del cliente: $url');
+    final response = await http.put(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(client.toJson()),
+    );
+    developer.log('Código de estado: ${response.statusCode}');
+    if (response.statusCode != 200) {
+      throw Exception('Error al actualizar el perfil: ${response.statusCode}');
+    }
+  }
+
+  // Obtener pedidos del cliente usando el ID de usuario guardado
+  Future<List<dynamic>> getClientOrders() async {
+    final userId = await AuthService.getCurrentClientId();
+    final url = Uri.parse('$baseUrl/api/ventas/mis-ventas/$userId');
+    developer.log('Obteniendo pedidos del cliente: $url');
+    final response = await http.get(
+      url,
+      headers: {'Accept': 'application/json'},
+    );
+    developer.log('Código de estado: ${response.statusCode}');
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    } else {
+      throw Exception('Error al cargar los pedidos: ${response.statusCode}');
     }
   }
 }
