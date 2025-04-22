@@ -1,18 +1,21 @@
-name: postwaremobile 
-description: Aplicación PostWare con pantalla de login personalizada
+name: postwaremobile
+description: "A new Flutter project."
+publish_to: 'none'
 
 # La siguiente línea define la versión de tu aplicación. +1 en número de versión
 # cada vez que subas una actualización a la tienda.
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'  # Versión de Dart/Flutter
+  sdk: '>=3.2.3 <4.0.0'  # Versión de Dart/Flutter
 
 dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2  # Iconos para iOS
-  http: ^1.1.0  # Añadido para las llamadas HTTP
+  http: ^1.1.2  # Añadido para las llamadas HTTP
+  provider: ^6.1.1
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/password_recovery_request.dart';
+import '../widgets/theme_switch_button.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -75,6 +76,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Restablecer Contraseña'),
+        actions: const [
+          ThemeSwitchButton(),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

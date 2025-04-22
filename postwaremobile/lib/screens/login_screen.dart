@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'registration_screen.dart'; 
+import 'registration_screen.dart';
 import 'forgot_password.dart';
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
+import '../models/login_request.dart';
+import '../widgets/theme_switch_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,12 +15,90 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _apiService = ApiService();
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final credentials = await AuthService.getSavedCredentials();
+    if (credentials['email'] != null && credentials['password'] != null) {
+      setState(() {
+        _emailController.text = credentials['email']!;
+        _passwordController.text = credentials['password']!;
+      });
+    }
+  }
+
+  Future<void> _handleLogin() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final request = LoginRequest(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+
+        final result = await _apiService.login(request);
+
+        if (!mounted) return;
+
+        if (result['success']) {
+          // Guardar las credenciales
+          await AuthService.saveCredentials(
+            _emailController.text,
+            _passwordController.text,
+            result['clientId'] ?? 0, // Asegurarse de que clientId sea un int
+          );
+          
+          // Mostrar mensaje de éxito
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message']),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Navegar al catálogo
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil('/catalog', (route) => false);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message']),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -24,6 +106,11 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        actions: const [
+          ThemeSwitchButton(),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -45,11 +132,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  // Campo de Usuario con validación
+                  // Campo de Email con validación
                   TextFormField(
-                    controller: _usernameController,
+                    controller: _emailController,
                     decoration: InputDecoration(
-                      labelText: 'Usuario',
+                      labelText: 'Email',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10.0),
                       ),
@@ -58,9 +145,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         vertical: 14.0,
                       ),
                     ),
+                    keyboardType: TextInputType.emailAddress,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor ingrese su usuario';
+                        return 'Por favor ingrese su email';
+                      }
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                          .hasMatch(value)) {
+                        return 'Ingrese un email válido';
                       }
                       return null;
                     },
@@ -70,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Campo de Contraseña con validación
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true,
+                    obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
                       border: OutlineInputBorder(
@@ -79,6 +171,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16.0,
                         vertical: 14.0,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
                       ),
                     ),
                     validator: (value) {
@@ -99,61 +203,38 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Botón de Iniciar Sesión con validación
                   ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // Si la validación es exitosa
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Validación exitosa')),
-                        );
-                        // Aquí iría la lógica de autenticación
-                      }
-                    },
+                    onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10.0),
                       ),
                     ),
-                    child: const Text(
-                      'Iniciar sesión',
-                      style: TextStyle(fontSize: 16.0),
-                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : const Text(
+                            'Iniciar sesión',
+                            style: TextStyle(fontSize: 16.0),
+                          ),
                   ),
                   const SizedBox(height: 24.0),
 
                   // Enlaces inferiores
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton(
-                    onPressed: () {
-                       Navigator.push(
-                        context,
-                     MaterialPageRoute(
-                    builder: (context) => const ForgotPasswordScreen(),
-                      ),
-                      );
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
+                        );
                       },
                       child: const Text(
-                      '¿Olvidaste tu contraseña?',
-                      style: TextStyle(fontSize: 14.0),
-                        ), 
-                        ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const RegistrationScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          '¿Aún no tienes cuenta?',
-                          style: TextStyle(fontSize: 14.0),
-                        ),
+                        '¿Olvidaste tu contraseña?',
+                        style: TextStyle(fontSize: 14.0),
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 16.0),
 
