@@ -53,47 +53,32 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        final request = LoginRequest(
-          email: _emailController.text,
-          password: _passwordController.text,
+        final result = await _apiService.login(
+          _emailController.text,
+          _passwordController.text,
         );
-
-        final result = await _apiService.login(request);
-        developer.log('Resultado del inicio de sesión: $result');
 
         if (!mounted) return;
 
         if (result['success']) {
-          // Extraer el ID del usuario de la respuesta (soporta distintos formatos)
           final data = result['data'];
-          if (data != null && data is Map<String, dynamic>) {
-            if (data.containsKey('usuario') &&
-                data['usuario'] is Map<String, dynamic>) {
-              _clientId = data['usuario']['idusuario'] as int?;
-            } else if (data.containsKey('idusuario')) {
-              _clientId = data['idusuario'] as int?;
-            }
-          }
-          if (_clientId != null) {
-            print('Documento del cliente: ${data['documentocliente']}');
-            await AuthService.saveCredentials(
-              _emailController.text,
-              _passwordController.text,
-              _clientId!,
-              data['documentocliente'].toString(),
-            );
-          } else {
-            developer.log('Error: clientId no encontrado en la respuesta');
-          }
+          final usuario = data['usuario'];
+          final token = data['token'];
 
-          // Mostrar mensaje de éxito
+          await AuthService.saveCredentials(
+            userId: usuario['id'],
+            name: usuario['nombre'],
+            email: usuario['email'],
+            role: usuario['rol'].toString(),
+            token: token,
+          );
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result['message']),
               backgroundColor: Colors.green,
             ),
           );
-          // Navegar al catálogo
           Navigator.of(context)
               .pushNamedAndRemoveUntil('/catalog', (route) => false);
         } else {

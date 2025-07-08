@@ -1,37 +1,37 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String _emailKey = 'user_email';
-  static const String _passwordKey = 'user_password';
-  static const String _isLoggedInKey = 'is_logged_in';
-  static const String _clientIdKey = 'client_id';
+  static const String _userIdKey = 'user_id';
+  static const String _userNameKey = 'user_name';
+  static const String _userEmailKey = 'user_email';
+  static const String _userRoleKey = 'user_role';
   static const String _authTokenKey = 'auth_token';
-  static const String _documentoclienteKey = 'documentocliente';
+  static const String _isLoggedInKey = 'is_logged_in';
 
-  // Actualizar para guardar también el ID del cliente y el token
-  static Future<void> saveCredentials(
-      String email, String password, int clientId, String documentocliente,
-      {String? authToken}) async {
+  static Future<void> saveCredentials({
+    required int userId,
+    required String name,
+    required String email,
+    required String role,
+    required String token,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_emailKey, email);
-    await prefs.setString(_passwordKey, password);
-    await prefs.setInt(_clientIdKey, clientId);
+    await prefs.setInt(_userIdKey, userId);
+    await prefs.setString(_userNameKey, name);
+    await prefs.setString(_userEmailKey, email);
+    await prefs.setString(_userRoleKey, role);
+    await prefs.setString(_authTokenKey, token);
     await prefs.setBool(_isLoggedInKey, true);
-    await prefs.setString(_documentoclienteKey, documentocliente);
-
-    if (authToken != null) {
-      await prefs.setString(_authTokenKey, authToken);
-    }
   }
 
   static Future<Map<String, dynamic>> getSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     return {
-      'email': prefs.getString(_emailKey),
-      'password': prefs.getString(_passwordKey),
-      'clientId': prefs.getInt(_clientIdKey),
-      'authToken': prefs.getString(_authTokenKey),
-      'documentocliente': prefs.getString(_documentoclienteKey),
+      'userId': prefs.getInt(_userIdKey),
+      'name': prefs.getString(_userNameKey),
+      'email': prefs.getString(_userEmailKey),
+      'role': prefs.getString(_userRoleKey),
+      'token': prefs.getString(_authTokenKey),
     };
   }
 
@@ -47,18 +47,18 @@ class AuthService {
 
   static Future<void> clearCredentials() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_emailKey);
-    await prefs.remove(_passwordKey);
-    await prefs.remove(_clientIdKey);
+    await prefs.remove(_userIdKey);
+    await prefs.remove(_userNameKey);
+    await prefs.remove(_userEmailKey);
+    await prefs.remove(_userRoleKey);
     await prefs.remove(_authTokenKey);
-    await prefs.remove(_documentoclienteKey);
     await prefs.setBool(_isLoggedInKey, false);
   }
 
   // Método modificado para manejar mejor los errores
   static Future<int> getCurrentClientId() async {
     final prefs = await SharedPreferences.getInstance();
-    final clientId = prefs.getInt(_clientIdKey);
+    final clientId = prefs.getInt(_userIdKey);
 
     // Para pruebas, si no hay ID guardado, usar un valor por defecto (5)
     if (clientId == null) {

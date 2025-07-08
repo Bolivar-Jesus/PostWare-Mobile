@@ -11,7 +11,7 @@ import '../models/client.dart';
 import '../services/auth_service.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://apipost-elt2.onrender.com';
+  static const String baseUrl = 'https://backend-wi7t.onrender.com';
 
   Future<Map<String, dynamic>> registerUserAndClient(
     RegistrationRequest request,
@@ -210,31 +210,33 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> login(LoginRequest request) async {
+  Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final url = Uri.parse('$baseUrl/api/usuarios/login');
-
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: jsonEncode(request.toJson()),
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
       );
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && responseData['success'] == true) {
         return {
           'success': true,
-          'message': responseData['msg'] ?? 'Inicio de sesión exitoso',
+          'message': responseData['message'] ?? 'Inicio de sesión exitoso',
           'data': responseData['data'],
         };
       } else {
-        final responseData = jsonDecode(response.body);
         return {
           'success': false,
-          'message': responseData['msg'] ?? 'Error en el inicio de sesión',
+          'message': responseData['message'] ?? 'Error en el inicio de sesión',
         };
       }
     } catch (e) {
@@ -357,16 +359,16 @@ class ApiService {
     }
   }
 
-    // Obtener perfil del cliente por ID de usuario
+  // Obtener perfil del cliente por ID de usuario
   static Future<http.Response> obtenerPerfilCliente(int usuarioId) async {
     final url = Uri.parse('$baseUrl/clientes/usuario/$usuarioId');
     final response = await http.get(url);
     return response;
   }
 
-  
-    // Obtener pedidos por documento de cliente
-  static Future<http.Response> obtenerPedidosPorCliente(String documentoCliente) async {
+  // Obtener pedidos por documento de cliente
+  static Future<http.Response> obtenerPedidosPorCliente(
+      String documentoCliente) async {
     final url = Uri.parse('$baseUrl/ventas/cliente/$documentoCliente');
     final response = await http.get(url);
     return response;
