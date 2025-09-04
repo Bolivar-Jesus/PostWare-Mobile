@@ -19,6 +19,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _showAllErrors = false;
+  final FocusNode _tokenFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
+  final FocusNode _confirmPasswordFocus = FocusNode();
 
   Future<void> _handlePasswordReset() async {
     if (_formKey.currentState!.validate()) {
@@ -27,12 +31,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       });
 
       try {
-        final request = PasswordResetRequest(
-          newPassword: _passwordController.text,
+        final result = await _apiService.resetPassword(
           token: _tokenController.text,
+          nuevaPassword: _passwordController.text,
         );
-
-        final result = await _apiService.resetPassword(request);
 
         if (!mounted) return;
 
@@ -46,19 +48,41 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           // Navegar de vuelta a la pantalla de login
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message']),
-              backgroundColor: Colors.red,
+          String errorMsg =
+              result['message'] ?? 'Error al restablecer la contraseña';
+          if (errorMsg.toLowerCase().contains('token')) {
+            errorMsg =
+                'El token es inválido o ha expirado. Solicita uno nuevo.';
+          }
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('No se pudo restablecer la contraseña'),
+              content: Text(errorMsg,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cerrar'),
+                ),
+              ],
             ),
           );
         }
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error de conexión'),
+            content: Text('Error: ${e.toString()}',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cerrar'),
+              ),
+            ],
           ),
         );
       } finally {
@@ -106,6 +130,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 const SizedBox(height: 24.0),
                 TextFormField(
                   controller: _tokenController,
+                  focusNode: _tokenFocus,
+                  autovalidateMode: (_showAllErrors || _tokenFocus.hasFocus)
+                      ? AutovalidateMode.always
+                      : AutovalidateMode.disabled,
                   decoration: InputDecoration(
                     labelText: 'Token',
                     border: OutlineInputBorder(
@@ -116,17 +144,32 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       vertical: 14.0,
                     ),
                   ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  buildCounter: (_,
+                          {required currentLength,
+                          required isFocused,
+                          maxLength}) =>
+                      null,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Por favor ingrese el token';
+                      return 'El token es requerido';
+                    }
+                    if (!RegExp(r'^\d{4}$').hasMatch(value.trim())) {
+                      return 'El token debe ser un código de 4 dígitos';
                     }
                     return null;
                   },
+                  onChanged: (value) => setState(() {}),
                 ),
                 const SizedBox(height: 16.0),
                 TextFormField(
                   controller: _passwordController,
+                  focusNode: _passwordFocus,
                   obscureText: _obscurePassword,
+                  autovalidateMode: (_showAllErrors || _passwordFocus.hasFocus)
+                      ? AutovalidateMode.always
+                      : AutovalidateMode.disabled,
                   decoration: InputDecoration(
                     labelText: 'Nueva Contraseña',
                     border: OutlineInputBorder(
@@ -150,19 +193,34 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingrese la nueva contraseña';
+                    if (value == null || value.trim().isEmpty) {
+                      return 'La contraseña es requerida';
                     }
-                    if (value.length < 6) {
-                      return 'La contraseña debe tener al menos 6 caracteres';
+                    if (value.length < 8) {
+                      return 'La contraseña debe tener al menos 8 caracteres';
+                    }
+                    if (!RegExp(r'\d').hasMatch(value)) {
+                      return 'Debe contener al menos un número';
+                    }
+                    if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(value)) {
+                      return 'Debe contener al menos un carácter especial';
+                    }
+                    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                      return 'Debe contener al menos una mayúscula';
                     }
                     return null;
                   },
+                  onChanged: (value) => setState(() {}),
                 ),
                 const SizedBox(height: 16.0),
                 TextFormField(
                   controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
+                  focusNode: _confirmPasswordFocus,
+                  obscureText: _obscurePassword,
+                  autovalidateMode:
+                      (_showAllErrors || _confirmPasswordFocus.hasFocus)
+                          ? AutovalidateMode.always
+                          : AutovalidateMode.disabled,
                   decoration: InputDecoration(
                     labelText: 'Confirmar Nueva Contraseña',
                     border: OutlineInputBorder(
@@ -172,28 +230,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       horizontal: 16.0,
                       vertical: 14.0,
                     ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                    ),
+                    // No suffixIcon aquí, solo en nueva contraseña
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Por favor confirme la nueva contraseña';
+                      return 'Debe confirmar la contraseña';
                     }
                     if (value != _passwordController.text) {
                       return 'Las contraseñas no coinciden';
                     }
                     return null;
                   },
+                  onChanged: (value) => setState(() {}),
                 ),
                 const SizedBox(height: 24.0),
                 ElevatedButton(
@@ -224,6 +272,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     _tokenController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _tokenFocus.dispose();
+    _passwordFocus.dispose();
+    _confirmPasswordFocus.dispose();
     super.dispose();
   }
 }

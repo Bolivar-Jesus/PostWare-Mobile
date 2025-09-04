@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../screens/profile_screen.dart';
 import '../screens/catalog_screen.dart';
 import '../screens/orders_screen.dart';
+import '../services/biometric_service.dart';
 
 class AppMenu extends StatelessWidget {
   @override
@@ -36,8 +37,7 @@ class AppMenu extends StatelessWidget {
             );
             break;
           case 'cerrar_sesion':
-            // Lógica para cerrar sesión
-            await AuthService.clearCredentials();
+            await AuthService.logout();
             Navigator.of(context)
                 .pushNamedAndRemoveUntil('/', (route) => false);
             break;

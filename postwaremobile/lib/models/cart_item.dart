@@ -5,6 +5,7 @@ class CartItem {
   final String imagen;
   int cantidad;
   final int stock;
+  final int idpresentacion;
 
   CartItem({
     required this.idproducto,
@@ -13,13 +14,14 @@ class CartItem {
     required this.imagen,
     required this.cantidad,
     required this.stock,
+    required this.idpresentacion,
   });
 
   double get subtotal => precioventa * cantidad;
 
   Map<String, dynamic> toJson() => {
         'idproducto': idproducto,
+        'idpresentacion': idpresentacion,
         'cantidad': cantidad,
-        'precioventa': precioventa,
       };
 }
