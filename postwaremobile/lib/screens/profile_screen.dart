@@ -1,9 +1,11 @@
-import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../models/client.dart';
 import 'edit_profile_screen.dart';
+import '../widgets/theme_switch_button.dart';
+import '../widgets/cart_icon.dart';
+import '../widgets/menu.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -33,7 +35,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       // Cargar perfil usando el ID de usuario guardado internamente en ApiService
       final clientData = await _apiService.getClientProfile();
-      developer.log('Datos del cliente recibidos: ${clientData.toString()}');
 
       if (mounted) {
         setState(() {
@@ -42,18 +43,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      developer.log('Error en _loadProfile: $e');
-
       if (mounted) {
         setState(() {
           _isLoading = false;
           _errorMessage = e.toString();
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
+        String errorMsg = e.toString();
+        if (errorMsg.toLowerCase().contains('perfil') ||
+            errorMsg.toLowerCase().contains('no se encontró')) {
+          errorMsg = 'No se encontró información de tu perfil.';
+        }
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error al cargar el perfil'),
+            content: Text(errorMsg,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cerrar'),
+              ),
+            ],
           ),
         );
       }
@@ -71,10 +83,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
+        String errorMsg = e.toString();
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error al actualizar el perfil'),
+            content: Text(errorMsg,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cerrar'),
+              ),
+            ],
           ),
         );
       }
@@ -87,6 +108,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Mi Perfil'),
         backgroundColor: Theme.of(context).primaryColor,
+        actions: [
+          const ThemeSwitchButton(),
+          const CartIcon(),
+          AppMenu(),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -144,9 +170,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _buildInfoRow("Nombre completo",
                                   "${_client!.nombre} ${_client!.apellido}"),
                               _buildInfoRow(
+                                  "Tipo de documento", _client!.tipodocumento),
+                              _buildInfoRow(
                                   "Documento", "${_client!.documentocliente}"),
                               _buildInfoRow("Estado",
-                                  _client!.estado == 1 ? "Activo" : "Inactivo"),
+                                  _client!.estado ? "Activo" : "Inactivo"),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -155,40 +183,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             [
                               _buildInfoRow("Email", _client!.email),
                               _buildInfoRow("Teléfono", _client!.telefono),
+                              _buildInfoRow("Municipio", _client!.municipio),
+                              _buildInfoRow("Dirección", _client!.direccion),
+                              _buildInfoRow("Barrio", _client!.barrio),
+                              _buildInfoRow(
+                                  "Complemento", _client!.complemento),
                             ],
                           ),
                           const SizedBox(height: 24),
-                          Center(
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                final updated = await Navigator.push<Client>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => EditProfileScreen(client: _client!),
-                                  ),
-                                );
-                                if (updated != null) {
-                                  setState(() {
-                                    _client = updated;
-                                  });
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 30, vertical: 12),
-                                backgroundColor: Theme.of(context).primaryColor,
-                              ),
-                              child: const Text(
-                                'Editar Información',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
                   ),
                 ),
+      bottomNavigationBar: _client != null && !_isLoading
+          ? SafeArea(
+              minimum: EdgeInsets.zero,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final updated = await Navigator.push<Client>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EditProfileScreen(client: _client!),
+                        ),
+                      );
+                      if (updated != null) {
+                        setState(() {
+                          _client = updated;
+                        });
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Theme.of(context).primaryColor,
+                    ),
+                    child: const Text(
+                      'Editar Información',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : null,
     );
   }
 

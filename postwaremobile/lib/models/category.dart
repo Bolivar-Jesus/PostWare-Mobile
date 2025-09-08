@@ -1,19 +1,19 @@
 class Category {
   final int id;
   final String nombre;
-  final String imagen;
+  final String? imagen;
 
   Category({
     required this.id,
     required this.nombre,
-    required this.imagen,
+    this.imagen,
   });
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
-      id: json['idcategoria'] ?? 0,
+      id: json['id'] ?? 0,
       nombre: json['nombre'] ?? '',
-      imagen: json['imagen'] ?? '',
+      imagen: json['imagen'],
     );
   }
 }

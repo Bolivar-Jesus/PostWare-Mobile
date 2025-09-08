@@ -15,32 +15,52 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
   final _apiService = ApiService();
   bool _isLoading = false;
+  bool _showAllErrors = false;
+  final FocusNode _emailFocus = FocusNode();
 
   Future<void> _handlePasswordRecovery() async {
+    setState(() {
+      _showAllErrors = true;
+    });
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
 
       try {
-        final request = PasswordRecoveryRequest(email: _emailController.text);
-        final result = await _apiService.requestPasswordRecovery(request);
+        final result =
+            await _apiService.requestPasswordRecovery(_emailController.text);
 
         if (!mounted) return;
 
         if (result['success']) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message']),
+            const SnackBar(
+              content: Text('Revisa tu correo'),
               backgroundColor: Colors.green,
             ),
           );
           Navigator.pushReplacementNamed(context, '/reset-password');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message']),
-              backgroundColor: Colors.red,
+          String errorMsg = result['message'] ?? 'Error en la solicitud';
+          // Si el error es por correo no registrado, mostrar mensaje amigable
+          if ((result['error'] ?? '').contains('correo') ||
+              errorMsg.toLowerCase().contains('correo')) {
+            errorMsg =
+                'Correo no registrado. No existe una cuenta con ese correo.';
+          }
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('No se pudo recuperar la contraseña'),
+              content: Text(errorMsg,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cerrar'),
+                ),
+              ],
             ),
           );
         }
@@ -100,6 +120,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   const SizedBox(height: 24.0),
                   TextFormField(
                     controller: _emailController,
+                    focusNode: _emailFocus,
+                    autovalidateMode: (_showAllErrors || _emailFocus.hasFocus)
+                        ? AutovalidateMode.always
+                        : AutovalidateMode.disabled,
                     decoration: InputDecoration(
                       labelText: 'Email',
                       border: OutlineInputBorder(
@@ -112,15 +136,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingrese su email';
+                      if (value == null || value.trim().isEmpty) {
+                        return 'El email es requerido';
                       }
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                          .hasMatch(value)) {
-                        return 'Ingrese un email válido';
+                      final emailRegex = RegExp(
+                          r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
+                      if (!emailRegex.hasMatch(value)) {
+                        return 'El formato del email no es válido';
+                      }
+                      if (value.length > 100) {
+                        return 'El email excede la longitud máxima permitida';
+                      }
+                      if (RegExp(r'[<>()[\]\\,;:\s"]+').hasMatch(value)) {
+                        return 'El email contiene caracteres no permitidos';
                       }
                       return null;
                     },
+                    onChanged: (value) => setState(() {}),
                   ),
                   const SizedBox(height: 24.0),
                   ElevatedButton(
@@ -154,6 +186,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   void dispose() {
+    _emailFocus.dispose();
     _emailController.dispose();
     super.dispose();
   }

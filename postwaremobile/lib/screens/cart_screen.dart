@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/cart_service.dart';
+import '../widgets/theme_switch_button.dart';
+import '../widgets/cart_icon.dart';
+import '../widgets/menu.dart';
 
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Carrito de Compras'),
+        actions: [
+          const ThemeSwitchButton(),
+          const CartIcon(),
+          AppMenu(),
+        ],
       ),
       body: Consumer<CartService>(
         builder: (context, cart, child) {
@@ -37,23 +52,33 @@ class CartScreen extends StatelessWidget {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                item.imagen,
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 60,
-                                    height: 60,
-                                    color: Colors.grey[300],
-                                    child: const Icon(
-                                      Icons.error_outline,
-                                      color: Colors.red,
+                              child: (item.imagen != null &&
+                                      item.imagen.isNotEmpty)
+                                  ? Image.network(
+                                      item.imagen,
+                                      width: 60,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return Container(
+                                          width: 60,
+                                          height: 60,
+                                          color: Colors.grey[300],
+                                          child: const Icon(
+                                            Icons.error_outline,
+                                            color: Colors.red,
+                                          ),
+                                        );
+                                      },
+                                    )
+                                  : Container(
+                                      width: 60,
+                                      height: 60,
+                                      color: Colors.grey[300],
+                                      child:
+                                          const Icon(Icons.image_not_supported),
                                     ),
-                                  );
-                                },
-                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -110,84 +135,170 @@ class CartScreen extends StatelessWidget {
                   },
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Total:',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+              SafeArea(
+                minimum: EdgeInsets.zero,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total:',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '\$${cart.total.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
+                          Text(
+                            '\$${cart.total.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          try {
-                            final result = await cart.createOrder();
-                            if (!context.mounted) return;
-
-                            if (result['success']) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Orden creada exitosamente'),
-                                  backgroundColor: Colors.green,
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                color: Colors.blue.shade700),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Para realizar el pedido se requiere confirmar tu identidad con huella dactilar o contraseña.',
+                                style: TextStyle(
+                                  color: Colors.blue.shade700,
+                                  fontSize: 14,
                                 ),
-                              );
-                              Navigator.pop(context);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(result['message']),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
                               ),
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Text(
-                          'Realizar Pedido',
-                          style: TextStyle(fontSize: 18),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () async {
+                                  setState(() {
+                                    _isLoading = true;
+                                  });
+                                  try {
+                                    final result = await cart
+                                        .createOrderWithValidation(context);
+                                    if (!context.mounted) return;
+
+                                    if (result['success']) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('Orden creada exitosamente'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                      Navigator.pop(context);
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(result['message']),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    String errorMsg = e.toString();
+                                    if (errorMsg
+                                        .toLowerCase()
+                                        .contains('carrito vacío')) {
+                                      errorMsg = 'Tu carrito está vacío.';
+                                    } else if (errorMsg
+                                        .toLowerCase()
+                                        .contains('stock')) {
+                                      errorMsg =
+                                          'No hay suficiente stock para este producto.';
+                                    } else if (errorMsg
+                                        .toLowerCase()
+                                        .contains('autenticación')) {
+                                      errorMsg =
+                                          'Error de autenticación. Verifica tu identidad.';
+                                    }
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title:
+                                            const Text('Error en el carrito'),
+                                        content: Text(errorMsg,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold)),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(),
+                                            child: const Text('Cerrar'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() {
+                                        _isLoading = false;
+                                      });
+                                    }
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.security, size: 20),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Realizar Pedido',
+                                      style: TextStyle(fontSize: 18),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

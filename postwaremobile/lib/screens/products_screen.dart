@@ -6,7 +6,9 @@ import '../models/product.dart';
 import '../models/cart_item.dart';
 import '../widgets/theme_switch_button.dart';
 import '../widgets/menu.dart'; // Importa el nuevo menú
+import '../widgets/cart_icon.dart';
 import 'cart_screen.dart';
+import '../models/presentation.dart';
 
 class ProductsScreen extends StatefulWidget {
   final int categoryId;
@@ -46,17 +48,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      String errorMsg = e.toString();
+      if (errorMsg.toLowerCase().contains('no disponible')) {
+        errorMsg = 'Este producto no está disponible.';
       }
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error al cargar productos'),
+          content: Text(errorMsg,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -73,159 +82,216 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
   }
 
-  void _showProductDetails(Product product) {
+  void _showProductDetails(Product product) async {
     final cart = Provider.of<CartService>(context, listen: false);
+    List<Presentation> presentations = [];
+    Presentation? selectedPresentation;
+    bool loadingPresentations = true;
+    String? errorPresentations;
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
         int cantidadSeleccionada = cart.getItemCount(product.id);
-
         return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: StatefulBuilder(
-            builder: (context, setState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(20)),
-                        child: Image.network(
-                          product.imagen,
-                          width: double.infinity,
-                          height: 200,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 200,
-                              color: Colors.grey[300],
-                              child: const Icon(
-                                Icons.error_outline,
-                                color: Colors.red,
-                                size: 50,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                          color: Colors.white,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.black54,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: Material(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(0),
+                child: StatefulBuilder(
+                  builder: (context, setState) {
+                    // Cargar presentaciones solo una vez
+                    if (loadingPresentations) {
+                      ApiService()
+                          .getPresentations(productId: product.id)
+                          .then((result) {
+                        setState(() {
+                          presentations = result;
+                          if (presentations.isNotEmpty) {
+                            selectedPresentation = presentations.first;
+                          }
+                          loadingPresentations = false;
+                        });
+                      }).catchError((e) {
+                        setState(() {
+                          errorPresentations = e.toString();
+                          loadingPresentations = false;
+                        });
+                      });
+                    }
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          product.nombre,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          product.detalleproducto,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.color
-                                ?.withOpacity(0.8),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Stack(
                           children: [
-                            Text(
-                              product.formattedPrice,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
+                            ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(20)),
+                              child: Image.network(
+                                product.imagen,
+                                width: double.infinity,
+                                height: 200,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    height: 200,
+                                    color: Colors.grey[300],
+                                    child: const Icon(
+                                      Icons.error_outline,
+                                      color: Colors.red,
+                                      size: 50,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
-                            Text(
-                              'Stock: ${product.stock}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: product.stock > 0
-                                    ? Colors.green
-                                    : Colors.red,
+                            Positioned(
+                              right: 8,
+                              top: 8,
+                              child: IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => Navigator.pop(context),
+                                color: Colors.white,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.black54,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            IconButton(
-                              onPressed: cantidadSeleccionada > 0
-                                  ? () {
-                                      setState(() {
-                                        cantidadSeleccionada--;
-                                      });
-                                      cart.removeItem(product.id);
-                                    }
-                                  : null,
-                              icon: const Icon(Icons.remove_circle_outline),
-                              iconSize: 32,
-                            ),
-                            const SizedBox(width: 16),
-                            Text(
-                              '$cantidadSeleccionada',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                product.nombre,
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            IconButton(
-                              onPressed: cantidadSeleccionada < product.stock
-                                  ? () {
-                                      setState(() {
-                                        cantidadSeleccionada++;
-                                      });
-                                      cart.addItem(CartItem(
-                                        idproducto: product.id,
-                                        nombre: product.nombre,
-                                        precioventa: product.precioventa,
-                                        imagen: product.imagen,
-                                        cantidad: 1,
-                                        stock: product.stock,
-                                      ));
-                                    }
-                                  : null,
-                              icon: const Icon(Icons.add_circle_outline),
-                              iconSize: 32,
-                            ),
-                          ],
+                              const SizedBox(height: 8),
+                              Text(
+                                product.detalleproducto,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color
+                                      ?.withOpacity(0.8),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              if (loadingPresentations)
+                                const Center(child: CircularProgressIndicator())
+                              else if (errorPresentations != null)
+                                Text('Error: $errorPresentations',
+                                    style: const TextStyle(color: Colors.red))
+                              else if (presentations.isNotEmpty)
+                                DropdownButton<Presentation>(
+                                  value: selectedPresentation,
+                                  isExpanded: true,
+                                  items: presentations.map((p) {
+                                    return DropdownMenuItem<Presentation>(
+                                      value: p,
+                                      child: Text(
+                                          '${p.nombre} - ${p.precioVentaPresentacion.toStringAsFixed(0)}'),
+                                    );
+                                  }).toList(),
+                                  onChanged: (p) {
+                                    setState(() {
+                                      selectedPresentation = p;
+                                    });
+                                  },
+                                ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    product.formattedPrice,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Stock: ${product.stock}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: product.stock > 0
+                                          ? Colors.green
+                                          : Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    onPressed: cantidadSeleccionada > 0
+                                        ? () {
+                                            setState(() {
+                                              cantidadSeleccionada--;
+                                            });
+                                            cart.removeItem(product.id);
+                                          }
+                                        : null,
+                                    icon:
+                                        const Icon(Icons.remove_circle_outline),
+                                    iconSize: 32,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    '$cantidadSeleccionada',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  IconButton(
+                                    onPressed: (cantidadSeleccionada <
+                                                product.stock &&
+                                            selectedPresentation != null)
+                                        ? () {
+                                            setState(() {
+                                              cantidadSeleccionada++;
+                                            });
+                                            cart.addItem(CartItem(
+                                              idproducto: product.id,
+                                              nombre: product.nombre,
+                                              precioventa: selectedPresentation!
+                                                  .precioVentaPresentacion,
+                                              imagen: product.imagen,
+                                              cantidad: 1,
+                                              stock: product.stock,
+                                              idpresentacion:
+                                                  selectedPresentation!
+                                                      .idpresentacion,
+                                            ));
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.add_circle_outline),
+                                    iconSize: 32,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
-                    ),
-                  ),
-                ],
-              );
-            },
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
         );
       },
@@ -241,6 +307,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         title: Text(widget.categoryName),
         actions: [
           const ThemeSwitchButton(),
+          const CartIcon(),
           AppMenu(), // Usar el nuevo menú aquí
         ],
       ),
@@ -292,24 +359,32 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        product.imagen,
-                                        width: 100,
-                                        height: 100,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return Container(
-                                            width: 100,
-                                            height: 100,
-                                            color: Colors.grey[300],
-                                            child: const Icon(
-                                              Icons.error_outline,
-                                              color: Colors.red,
+                                      child: (product.imagen != null &&
+                                              product.imagen.isNotEmpty)
+                                          ? Image.network(
+                                              product.imagen,
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return Container(
+                                                  width: 100,
+                                                  height: 100,
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(
+                                                      Icons.error_outline,
+                                                      color: Colors.red),
+                                                );
+                                              },
+                                            )
+                                          : Container(
+                                              width: 100,
+                                              height: 100,
+                                              color: Colors.grey[300],
+                                              child: const Icon(
+                                                  Icons.image_not_supported),
                                             ),
-                                          );
-                                        },
-                                      ),
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
@@ -334,49 +409,174 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                             ),
                                           ),
                                           const SizedBox(height: 8),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.end,
-                                            children: [
-                                              IconButton(
-                                                onPressed: cantidad > 0
-                                                    ? () {
-                                                        cart.removeItem(
-                                                            product.id);
-                                                      }
-                                                    : null,
-                                                icon: const Icon(Icons
-                                                    .remove_circle_outline),
-                                              ),
-                                              Text(
-                                                '$cantidad',
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              IconButton(
-                                                onPressed: cantidad <
-                                                        product.stock
-                                                    ? () {
-                                                        cart.addItem(CartItem(
-                                                          idproducto:
-                                                              product.id,
-                                                          nombre:
-                                                              product.nombre,
-                                                          precioventa: product
-                                                              .precioventa,
-                                                          imagen:
-                                                              product.imagen,
-                                                          cantidad: 1,
-                                                          stock: product.stock,
-                                                        ));
-                                                      }
-                                                    : null,
-                                                icon: const Icon(
-                                                    Icons.add_circle_outline),
-                                              ),
-                                            ],
+                                          Builder(
+                                            builder: (context) {
+                                              return FutureBuilder<
+                                                  List<Presentation>>(
+                                                future: ApiService()
+                                                    .getPresentations(
+                                                        productId: product.id),
+                                                builder: (context, snapshot) {
+                                                  if (snapshot
+                                                          .connectionState ==
+                                                      ConnectionState.waiting) {
+                                                    return const Padding(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                              vertical: 8.0),
+                                                      child:
+                                                          CircularProgressIndicator(),
+                                                    );
+                                                  }
+                                                  if (snapshot.hasError) {
+                                                    return const Text(
+                                                        'Error al cargar presentaciones',
+                                                        style: TextStyle(
+                                                            color: Colors.red));
+                                                  }
+                                                  final presentations =
+                                                      snapshot.data ?? [];
+                                                  if (presentations.isEmpty) {
+                                                    return Padding(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 8.0),
+                                                      child: Text(
+                                                          'No disponible para la venta',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.orange,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold)),
+                                                    );
+                                                  }
+                                                  return Padding(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        vertical: 8.0),
+                                                    child: ElevatedButton(
+                                                      onPressed: () async {
+                                                        Presentation?
+                                                            selectedPresentation =
+                                                            presentations.first;
+                                                        int cantidad = 1;
+                                                        await showDialog(
+                                                          context: context,
+                                                          builder: (context) {
+                                                            return StatefulBuilder(
+                                                              builder: (context,
+                                                                  setState) {
+                                                                return AlertDialog(
+                                                                  title: const Text(
+                                                                      'Selecciona presentación'),
+                                                                  content:
+                                                                      Column(
+                                                                    mainAxisSize:
+                                                                        MainAxisSize
+                                                                            .min,
+                                                                    children: [
+                                                                      DropdownButton<
+                                                                          Presentation>(
+                                                                        value:
+                                                                            selectedPresentation,
+                                                                        isExpanded:
+                                                                            true,
+                                                                        items: presentations
+                                                                            .map((p) {
+                                                                          return DropdownMenuItem<
+                                                                              Presentation>(
+                                                                            value:
+                                                                                p,
+                                                                            child:
+                                                                                Text('${p.nombre} - ${p.precioVentaPresentacion.toStringAsFixed(0)}'),
+                                                                          );
+                                                                        }).toList(),
+                                                                        onChanged:
+                                                                            (p) {
+                                                                          setState(
+                                                                              () {
+                                                                            selectedPresentation =
+                                                                                p;
+                                                                          });
+                                                                        },
+                                                                      ),
+                                                                      const SizedBox(
+                                                                          height:
+                                                                              12),
+                                                                      Row(
+                                                                        mainAxisAlignment:
+                                                                            MainAxisAlignment.center,
+                                                                        children: [
+                                                                          IconButton(
+                                                                            icon:
+                                                                                const Icon(Icons.remove_circle_outline),
+                                                                            onPressed: cantidad > 1
+                                                                                ? () {
+                                                                                    setState(() {
+                                                                                      cantidad--;
+                                                                                    });
+                                                                                  }
+                                                                                : null,
+                                                                          ),
+                                                                          Text(
+                                                                              '$cantidad',
+                                                                              style: const TextStyle(fontSize: 18)),
+                                                                          IconButton(
+                                                                            icon:
+                                                                                const Icon(Icons.add_circle_outline),
+                                                                            onPressed:
+                                                                                () {
+                                                                              setState(() {
+                                                                                cantidad++;
+                                                                              });
+                                                                            },
+                                                                          ),
+                                                                        ],
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                  actions: [
+                                                                    TextButton(
+                                                                      onPressed:
+                                                                          () =>
+                                                                              Navigator.pop(context),
+                                                                      child: const Text(
+                                                                          'Cancelar'),
+                                                                    ),
+                                                                    ElevatedButton(
+                                                                      onPressed: selectedPresentation !=
+                                                                              null
+                                                                          ? () {
+                                                                              Provider.of<CartService>(context, listen: false).addItem(CartItem(
+                                                                                idproducto: product.id,
+                                                                                nombre: product.nombre,
+                                                                                precioventa: selectedPresentation!.precioVentaPresentacion,
+                                                                                imagen: product.imagen,
+                                                                                cantidad: cantidad,
+                                                                                stock: product.stock,
+                                                                                idpresentacion: selectedPresentation!.idpresentacion,
+                                                                              ));
+                                                                              Navigator.pop(context);
+                                                                            }
+                                                                          : null,
+                                                                      child: const Text(
+                                                                          'Agregar'),
+                                                                    ),
+                                                                  ],
+                                                                );
+                                                              },
+                                                            );
+                                                          },
+                                                        );
+                                                      },
+                                                      child: const Text(
+                                                          'Agregar al carrito'),
+                                                    ),
+                                                  );
+                                                },
+                                              );
+                                            },
                                           ),
                                         ],
                                       ),
@@ -389,46 +589,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         },
                       ),
           ),
-        ],
-      ),
-      floatingActionButton: Stack(
-        alignment: Alignment.topRight,
-        children: [
-          FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CartScreen(),
-                ),
-              );
-            },
-            child: const Icon(Icons.shopping_cart),
-          ),
-          if (cart.items.isNotEmpty)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
-                child: Text(
-                  '${cart.items.length}', // Muestra la cantidad de productos únicos
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
         ],
       ),
     );

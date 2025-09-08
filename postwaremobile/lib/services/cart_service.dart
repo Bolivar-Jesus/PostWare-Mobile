@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/cart_item.dart';
 import 'auth_service.dart';
+import 'api_config.dart';
+import 'order_validation_service.dart';
 
 class CartService extends ChangeNotifier {
   final List<CartItem> _items = [];
-  static const String baseUrl = 'https://apipost-elt2.onrender.com';
+  // Usar la configuración centralizada
 
   List<CartItem> get items => List.unmodifiable(_items);
 
@@ -22,6 +24,7 @@ class CartService extends ChangeNotifier {
         imagen: '',
         cantidad: 0,
         stock: 0,
+        idpresentacion: 0,
       ),
     );
     return item.cantidad;
@@ -62,53 +65,60 @@ class CartService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Map<String, dynamic>> createOrder() async {
+  /// Método principal para crear orden con validación
+  Future<Map<String, dynamic>> createOrderWithValidation(
+      BuildContext context) async {
     if (_items.isEmpty) {
       throw Exception('El carrito está vacío');
     }
 
-    try {
-      final url = Uri.parse('$baseUrl/api/ventas');
+    // Primero validar la identidad del usuario
+    final isValidated = await OrderValidationService.validateOrder(context);
+    if (!isValidated) {
+      return {
+        'success': false,
+        'message': 'Autenticación fallida. No se pudo confirmar tu identidad.',
+      };
+    }
 
+    // Si la validación es exitosa, proceder con la creación del pedido
+    return await _createOrderInternal();
+  }
+
+  /// Método interno para crear la orden (sin validación)
+  Future<Map<String, dynamic>> _createOrderInternal() async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.salesEndpoint}');
       final credentials = await AuthService.getSavedCredentials();
-      print('Credenciales recuperadas: $credentials');
       final documentoCliente = credentials['documentocliente'];
+      final token = await AuthService.getAuthToken();
 
       if (documentoCliente == null || documentoCliente.isEmpty) {
         throw Exception('El documento del cliente no está disponible');
       }
 
-      final totalFormateado = _items.fold(
-          0.0, (sum, item) => sum + (item.precioventa * item.cantidad));
+      final now = DateTime.now();
+      final fechaVenta =
+          "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-      final productosFormateados = _items.map((item) {
-        return {
-          'idproducto': item.idproducto,
-          'cantidad': item.cantidad,
-          'precioventa': item.precioventa,
-        };
-      }).toList();
+      final productosFormateados = _items.map((item) => item.toJson()).toList();
 
       final ventaData = {
         'documentocliente': documentoCliente,
-        'total': totalFormateado,
-        'productos': productosFormateados
+        'tipo': 'PEDIDO_MOVIL',
+        'fechaventa': fechaVenta,
+        'productos': productosFormateados,
       };
-
-      print('URL de la petición: $url');
-      print('Datos enviados: ${jsonEncode(ventaData)}');
 
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
         },
         body: jsonEncode(ventaData),
       );
-
-      print('Código de respuesta: ${response.statusCode}');
-      print('Respuesta completa del servidor: ${response.body}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
@@ -124,10 +134,8 @@ class CartService extends ChangeNotifier {
           final errorBody = jsonDecode(response.body);
           errorMessage =
               errorBody['error'] ?? errorBody['message'] ?? 'Error desconocido';
-          print('Error detallado del servidor: $errorBody');
         } catch (e) {
           errorMessage = response.body;
-          print('Error al parsear la respuesta: $e');
         }
         return {
           'success': false,
@@ -135,9 +143,13 @@ class CartService extends ChangeNotifier {
         };
       }
     } catch (e, stackTrace) {
-      print('Error detallado: $e');
-      print('Stack trace: $stackTrace');
       return {'success': false, 'message': 'Error de conexión: $e'};
     }
+  }
+
+  /// Método legacy para compatibilidad (sin validación)
+  @Deprecated('Usar createOrderWithValidation en su lugar')
+  Future<Map<String, dynamic>> createOrder() async {
+    return await _createOrderInternal();
   }
 }
