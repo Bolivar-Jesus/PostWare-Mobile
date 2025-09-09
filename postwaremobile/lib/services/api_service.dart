@@ -445,6 +445,112 @@ class ApiService {
     }
   }
 
+  // Método alternativo para obtener presentaciones de un producto específico
+  Future<List<Presentation>> getProductPresentations(int productId) async {
+    try {
+      final url = Uri.parse(
+          '${ApiConfig.baseUrl}/api/productos/$productId/presentaciones');
+      final token = await AuthService.getAuthToken();
+      final response = await http.get(
+        url,
+        headers: {
+          'Accept': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        List<dynamic> presentationsJson;
+
+        if (responseData['data'] != null && responseData['data'] is List) {
+          presentationsJson = responseData['data'];
+        } else if (responseData['presentaciones'] != null) {
+          presentationsJson = responseData['presentaciones'];
+        } else {
+          presentationsJson = [];
+        }
+
+        final presentations = presentationsJson
+            .map((json) => Presentation.fromJson(json))
+            .toList();
+
+        if (ApiConfig.debugMode) {
+          print(
+              'DEBUG: Presentaciones obtenidas para producto $productId: ${presentations.length}');
+          print(
+              'DEBUG: Respuesta raw del endpoint específico: ${response.body}');
+        }
+
+        return presentations;
+      } else {
+        if (ApiConfig.debugMode) {
+          print('DEBUG: Endpoint específico falló, intentando método general');
+        }
+        // Si falla, intentar con el método original
+        return await getPresentations(productId: productId);
+      }
+    } catch (e) {
+      if (ApiConfig.debugMode) {
+        print('DEBUG: Error en endpoint específico: $e');
+      }
+      // Si falla, intentar con el método original
+      return await getPresentations(productId: productId);
+    }
+  }
+
+  // Método simple para verificar si un producto tiene presentaciones disponibles
+  Future<bool> isProductAvailable(int productId) async {
+    try {
+      final presentations = await getProductPresentations(productId);
+      return presentations.isNotEmpty;
+    } catch (e) {
+      if (ApiConfig.debugMode) {
+        print(
+            'DEBUG: Error verificando disponibilidad del producto $productId: $e');
+      }
+      return false;
+    }
+  }
+
+  // Método de debug para probar directamente la API
+  Future<void> debugProductPresentations(int productId) async {
+    try {
+      print('=== DEBUG PRODUCTO $productId ===');
+
+      // Probar endpoint específico
+      final url = Uri.parse(
+          '${ApiConfig.baseUrl}/api/productos/$productId/presentaciones');
+      final token = await AuthService.getAuthToken();
+      final response = await http.get(
+        url,
+        headers: {
+          'Accept': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('DEBUG: Status Code: ${response.statusCode}');
+      print('DEBUG: Response Body: ${response.body}');
+
+      // Probar endpoint general
+      final urlGeneral =
+          Uri.parse('${ApiConfig.baseUrl}${ApiConfig.presentationsEndpoint}');
+      final responseGeneral = await http.get(
+        urlGeneral,
+        headers: {
+          'Accept': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('DEBUG: General Status Code: ${responseGeneral.statusCode}');
+      print('DEBUG: General Response Body: ${responseGeneral.body}');
+    } catch (e) {
+      print('DEBUG: Error en debug: $e');
+    }
+  }
+
   Future<List<Presentation>> getPresentations({int? productId}) async {
     try {
       final url =
@@ -459,15 +565,45 @@ class ApiService {
       );
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
-        final List<dynamic> presentationsJson =
-            responseData['data']['unidades'];
+
+        // Manejar diferentes estructuras de respuesta
+        List<dynamic> presentationsJson;
+        if (responseData['data'] != null &&
+            responseData['data']['unidades'] != null) {
+          presentationsJson = responseData['data']['unidades'];
+        } else if (responseData['unidades'] != null) {
+          presentationsJson = responseData['unidades'];
+        } else if (responseData['data'] is List) {
+          presentationsJson = responseData['data'];
+        } else {
+          presentationsJson = [];
+        }
+
         final allPresentations = presentationsJson
             .map((json) => Presentation.fromJson(json))
             .toList();
+
         if (productId != null) {
-          return allPresentations
-              .where((p) => p.productoId == productId)
-              .toList();
+          final filteredPresentations =
+              allPresentations.where((p) => p.productoId == productId).toList();
+
+          // Debug: imprimir información para diagnosticar
+          if (ApiConfig.debugMode) {
+            print(
+                'DEBUG: Buscando presentaciones para producto ID: $productId');
+            print(
+                'DEBUG: Total presentaciones encontradas: ${allPresentations.length}');
+            print(
+                'DEBUG: Presentaciones filtradas: ${filteredPresentations.length}');
+            for (var p in allPresentations) {
+              print(
+                  'DEBUG: Presentación ID: ${p.idpresentacion}, Producto ID: ${p.productoId}');
+            }
+            // Debug adicional: mostrar la respuesta raw de la API
+            print('DEBUG: Respuesta raw de la API: ${response.body}');
+          }
+
+          return filteredPresentations;
         }
         return allPresentations;
       } else {
@@ -696,6 +832,56 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error descargando PDF: $e');
+    }
+  }
+
+  // Método de prueba para simular la respuesta de la API
+  Future<void> testPresentationMapping() async {
+    print('=== PRUEBA DE MAPEO DE PRESENTACIONES ===');
+
+    // Simular diferentes estructuras de respuesta
+    final testCases = [
+      {
+        'idpresentacion': 1,
+        'producto_idproducto': 20,
+        'nombre': 'Unidad',
+        'factor_conversion': 1,
+        'es_predeterminada': true,
+        'codigobarras': '123456',
+        'precio_compra_presentacion': 1000.0,
+        'precio_venta_presentacion': 1500.0,
+      },
+      {
+        'idpresentacion': 2,
+        'productoId': 20, // Diferente nombre de campo
+        'nombre': 'Docena',
+        'factor_conversion': 12,
+        'es_predeterminada': false,
+        'codigobarras': '123457',
+        'precio_compra_presentacion': 12000.0,
+        'precio_venta_presentacion': 18000.0,
+      },
+      {
+        'idpresentacion': 3,
+        'idproducto': 20, // Otra variante
+        'nombre': 'Caja',
+        'factor_conversion': 24,
+        'es_predeterminada': false,
+        'codigobarras': '123458',
+        'precio_compra_presentacion': 24000.0,
+        'precio_venta_presentacion': 36000.0,
+      },
+    ];
+
+    for (var testCase in testCases) {
+      print('--- Probando caso: $testCase ---');
+      try {
+        final presentation = Presentation.fromJson(testCase);
+        print(
+            'Resultado: ID=${presentation.idpresentacion}, ProductoID=${presentation.productoId}, Nombre=${presentation.nombre}');
+      } catch (e) {
+        print('Error: $e');
+      }
     }
   }
 }
