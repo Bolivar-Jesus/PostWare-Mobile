@@ -36,7 +36,7 @@ class ThemeProvider with ChangeNotifier {
       foregroundColor: Colors.black,
       iconTheme: IconThemeData(color: Colors.black),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
@@ -54,7 +54,7 @@ class ThemeProvider with ChangeNotifier {
       foregroundColor: Colors.white,
       iconTheme: const IconThemeData(color: Colors.white),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),

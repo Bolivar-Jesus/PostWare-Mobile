@@ -19,6 +19,7 @@ class ApiConfig {
   // Endpoints de productos
   static const String productDetailEndpoint = '/api/productos/{id}';
   static const String presentationsEndpoint = '/api/unidades';
+  static const String createPresentationEndpoint = '/api/unidades';
 
   // Endpoints de clientes
   static const String clientProfileEndpoint =

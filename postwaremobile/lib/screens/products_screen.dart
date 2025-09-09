@@ -7,7 +7,6 @@ import '../models/cart_item.dart';
 import '../widgets/theme_switch_button.dart';
 import '../widgets/menu.dart'; // Importa el nuevo menú
 import '../widgets/cart_icon.dart';
-import 'cart_screen.dart';
 import '../models/presentation.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -102,8 +101,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   builder: (context, setState) {
                     // Cargar presentaciones solo una vez
                     if (loadingPresentations) {
+                      // Debug: probar la API directamente
+                      ApiService().debugProductPresentations(product.id);
+
                       ApiService()
-                          .getPresentations(productId: product.id)
+                          .getProductPresentations(product.id)
                           .then((result) {
                         setState(() {
                           presentations = result;
@@ -346,7 +348,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         itemCount: _filteredProducts.length,
                         itemBuilder: (context, index) {
                           final product = _filteredProducts[index];
-                          final cantidad = cart.getItemCount(product.id);
+                          // final cantidad = cart.getItemCount(product.id);
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 16),
@@ -359,8 +361,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
-                                      child: (product.imagen != null &&
-                                              product.imagen.isNotEmpty)
+                                      child: product.imagen.isNotEmpty
                                           ? Image.network(
                                               product.imagen,
                                               width: 100,
@@ -414,8 +415,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                               return FutureBuilder<
                                                   List<Presentation>>(
                                                 future: ApiService()
-                                                    .getPresentations(
-                                                        productId: product.id),
+                                                    .getProductPresentations(
+                                                        product.id),
                                                 builder: (context, snapshot) {
                                                   if (snapshot
                                                           .connectionState ==
@@ -429,10 +430,29 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                     );
                                                   }
                                                   if (snapshot.hasError) {
-                                                    return const Text(
-                                                        'Error al cargar presentaciones',
-                                                        style: TextStyle(
-                                                            color: Colors.red));
+                                                    return Padding(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 8.0),
+                                                      child: Column(
+                                                        children: [
+                                                          const Text(
+                                                              'Error al cargar presentaciones',
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .red)),
+                                                          const SizedBox(
+                                                              height: 8),
+                                                          Text(
+                                                              'Error: ${snapshot.error}',
+                                                              style: const TextStyle(
+                                                                  color: Colors
+                                                                      .red,
+                                                                  fontSize:
+                                                                      12)),
+                                                        ],
+                                                      ),
+                                                    );
                                                   }
                                                   final presentations =
                                                       snapshot.data ?? [];
@@ -441,14 +461,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                       padding: const EdgeInsets
                                                           .symmetric(
                                                           vertical: 8.0),
-                                                      child: Text(
-                                                          'No disponible para la venta',
-                                                          style: TextStyle(
-                                                              color:
-                                                                  Colors.orange,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold)),
+                                                      child: Column(
+                                                        children: [
+                                                          const Text(
+                                                              'No disponible para la venta',
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .orange,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold)),
+                                                          const SizedBox(
+                                                              height: 4),
+                                                          Text(
+                                                              'Producto ID: ${product.id}',
+                                                              style: const TextStyle(
+                                                                  color: Colors
+                                                                      .grey,
+                                                                  fontSize:
+                                                                      12)),
+                                                        ],
+                                                      ),
                                                     );
                                                   }
                                                   return Padding(
